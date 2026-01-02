@@ -1,4 +1,4 @@
-Grocery App Code
+<!— Grocery App Code —>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -113,12 +113,43 @@ Grocery App Code
     <button onclick="addItem()">Add Item</button>
   </div>
 
+<div class="filters">
+  <button onclick="setMode('all')">All</button>
+  <button onclick="setMode('shopping')">🛒 Shopping</button>
+  <button onclick="setMode('inventory')">📦 Inventory</button>
+
+  <select onchange="filterStore = this.value; render()">
+    <option value="all">All Stores</option>
+    ${[...new Set(items.map(i => i.store).filter(Boolean))]
+      .map(s => `<option value="${s}">${s}</option>`)
+      .join("")}
+  </select>
+</div>
+
   <div class="list" id="list"></div>
 </div>
 
 <script>
   const STORAGE_KEY = "grocery-items";
   let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+let filterStatus = "all";   // all | need | have
+let filterStore = "all";
+let mode = "all";          // all | shopping | inventory
+
+function setMode(newMode) {
+  mode = newMode;
+
+  if (mode === "shopping") {
+    filterStatus = "need";
+  } else if (mode === "inventory") {
+    filterStatus = "have";
+  } else {
+    filterStatus = "all";
+  }
+
+  render();
+}
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -198,10 +229,13 @@ function deleteItem(id) {
     list.innerHTML = "";
 
     items
-      .sort((a, b) => a.status.localeCompare(b.status))
-      .forEach(item => {
-        const div = document.createElement("div");
-        div.className = `item ${item.status}`;
+  .filter(item => {
+    if (filterStatus !== "all" && item.status !== filterStatus) return false;
+    if (filterStore !== "all" && item.store !== filterStore) return false;
+    return true;
+  })
+  .sort((a, b) => a.status.localeCompare(b.status))
+  .forEach(item => {
 
         div.innerHTML = `
           <div class="details">
