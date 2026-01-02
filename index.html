@@ -228,8 +228,13 @@ function deleteItem(id) {
   const item = items.find(i => i.id === id);
 
   if (item.status === "need") {
-    const qty = prompt("How many did you buy?", item.quantity || 1);
+    const qty = prompt(
+      "How many did you buy?",
+      item.lastQty || item.quantity || 1
+    );
+
     item.quantity = Math.max(1, Number(qty) || 1);
+    item.lastQty = item.quantity;
     item.status = "have";
   } else {
     item.status = "need";
@@ -243,11 +248,15 @@ function deleteItem(id) {
   const item = items.find(i => i.id === id);
   item.quantity += delta;
 
-  if (item.quantity <= 0) {
-    item.quantity = 0;
+  if (item.quantity <= (item.minQty ?? 1)) {
     item.status = "need";
   }
 
+  if (item.quantity < 0) item.quantity = 0;
+
+  save();
+  render();
+}
   save();
   render();
 }
@@ -282,6 +291,12 @@ function render() {
           <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
           <button class="small-btn" onclick="toggleStatus('${item.id}')">
             ${item.status === "need" ? "Bought" : "Need"}
+
+${item.status === "need" && item.lastQty
+  ? `<button class="small-btn" onclick="smartRestock('${item.id}')">↺ Restock</button>`
+  : ""
+}
+
           </button>
           <button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
         </div>
@@ -292,6 +307,14 @@ function render() {
 }
 
   render();
+
+function smartRestock(id) {
+  const item = items.find(i => i.id === id);
+  item.quantity = item.lastQty;
+  item.status = "have";
+  save();
+  render();
+}
 
 function markAllBought() {
   if (!confirm("Mark all visible items as bought?")) return;
