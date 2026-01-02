@@ -118,6 +118,11 @@
   <button onclick="setMode('shopping')">🛒 Shopping</button>
   <button onclick="setMode('inventory')">📦 Inventory</button>
 
+<div class="filters">
+  <button onclick="markAllBought()">✔ Buy All</button>
+  <button onclick="clearHaveItems()">🧹 Clear Have</button>
+</div>
+
   <select id="storeFilter" onchange="filterStore = this.value; render()">
     <option value="all">All Stores</option>
   </select>
@@ -130,11 +135,20 @@
   const STORAGE_KEY = "grocery-items";
   let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 
+const UI_STATE_KEY = "grocery-ui-state";
+
 function updateStoreFilter() {
   const select = document.getElementById("storeFilter");
   if (!select) return;
 
   const stores = [...new Set(items.map(i => i.store).filter(Boolean))];
+
+const savedUI = JSON.parse(localStorage.getItem(UI_STATE_KEY));
+if (savedUI) {
+  mode = savedUI.mode || "all";
+  filterStatus = savedUI.filterStatus || "all";
+  filterStore = savedUI.filterStore || "all";
+}
 
   select.innerHTML = `<option value="all">All Stores</option>` +
     stores.map(s => `<option value="${s}">${s}</option>`).join("");
@@ -161,6 +175,13 @@ function setMode(newMode) {
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }
+
+function saveUIState() {
+  localStorage.setItem(
+    UI_STATE_KEY,
+    JSON.stringify({ mode, filterStatus, filterStore })
+  );
+}
 
   function addItem() {
   const name = document.getElementById("name").value.trim();
@@ -271,6 +292,33 @@ function render() {
 }
 
   render();
+
+function markAllBought() {
+  if (!confirm("Mark all visible items as bought?")) return;
+
+  items.forEach(item => {
+    if (
+      filterStatus === "need" &&
+      item.status === "need" &&
+      (filterStore === "all" || item.store === filterStore)
+    ) {
+      item.status = "have";
+      item.quantity = Math.max(1, item.quantity);
+    }
+  });
+
+  save();
+  render();
+}
+
+function clearHaveItems() {
+  if (!confirm("Remove all HAVE items?")) return;
+
+  items = items.filter(item => item.status !== "have");
+  save();
+  render();
+}
+
 </script>
 
 </body>
