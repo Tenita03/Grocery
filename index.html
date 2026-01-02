@@ -118,11 +118,8 @@
   <button onclick="setMode('shopping')">🛒 Shopping</button>
   <button onclick="setMode('inventory')">📦 Inventory</button>
 
-  <select onchange="filterStore = this.value; render()">
+  <select id="storeFilter" onchange="filterStore = this.value; render()">
     <option value="all">All Stores</option>
-    ${[...new Set(items.map(i => i.store).filter(Boolean))]
-      .map(s => `<option value="${s}">${s}</option>`)
-      .join("")}
   </select>
 </div>
 
@@ -132,6 +129,16 @@
 <script>
   const STORAGE_KEY = "grocery-items";
   let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+function updateStoreFilter() {
+  const select = document.getElementById("storeFilter");
+  if (!select) return;
+
+  const stores = [...new Set(items.map(i => i.store).filter(Boolean))];
+
+  select.innerHTML = `<option value="all">All Stores</option>` +
+    stores.map(s => `<option value="${s}">${s}</option>`).join("");
+}
 
 let filterStatus = "all";   // all | need | have
 let filterStore = "all";
@@ -224,42 +231,44 @@ function deleteItem(id) {
   render();
 }
 
-  function render() {
-    const list = document.getElementById("list");
-    list.innerHTML = "";
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
 
-    items
-  .filter(item => {
-    if (filterStatus !== "all" && item.status !== filterStatus) return false;
-    if (filterStore !== "all" && item.store !== filterStore) return false;
-    return true;
-  })
-  .sort((a, b) => a.status.localeCompare(b.status))
-  .forEach(item => {
+  updateStoreFilter();
 
-        div.innerHTML = `
-          <div class="details">
-            <div class="name">${item.name}</div>
-            <div class="meta">
-              Qty: ${item.quantity}
-              ${item.store ? ` • ${item.store}` : ""}
-            </div>
+  items
+    .filter(item => {
+      if (filterStatus !== "all" && item.status !== filterStatus) return false;
+      if (filterStore !== "all" && item.store !== filterStore) return false;
+      return true;
+    })
+    .sort((a, b) => a.status.localeCompare(b.status))
+    .forEach(item => {
+      const div = document.createElement("div");
+      div.className = `item ${item.status}`;
+
+      div.innerHTML = `
+        <div class="details">
+          <div class="name">${item.name}</div>
+          <div class="meta">
+            Qty: ${item.quantity}
+            ${item.store ? ` • ${item.store}` : ""}
           </div>
-          <div class="controls">
-            <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
-            <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
-        <button class="small-btn" onclick="toggleStatus('${item.id}')">
-  ${item.status === "need" ? "Bought" : "Need"}
-</button>
-<button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
-              ${item.status === "need" ? "Have" : "Need"}
-            </button>
-          </div>
-        `;
+        </div>
+        <div class="controls">
+          <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
+          <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
+          <button class="small-btn" onclick="toggleStatus('${item.id}')">
+            ${item.status === "need" ? "Bought" : "Need"}
+          </button>
+          <button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
+        </div>
+      `;
 
-        list.appendChild(div);
-      });
-  }
+      list.appendChild(div);
+    });
+}
 
   render();
 </script>
