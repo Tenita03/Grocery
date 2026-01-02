@@ -1,3 +1,5 @@
+Grocery App Code
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -123,12 +125,21 @@
   }
 
   function addItem() {
-    const name = document.getElementById("name").value.trim();
-    const quantity = Number(document.getElementById("quantity").value) || 1;
-    const store = document.getElementById("store").value.trim();
+  const name = document.getElementById("name").value.trim();
+  const quantity = Number(document.getElementById("quantity").value) || 1;
+  const store = document.getElementById("store").value.trim();
 
-    if (!name) return;
+  if (!name) return;
 
+  const existing = items.find(
+    i => i.name.toLowerCase() === name.toLowerCase()
+  );
+
+  if (existing) {
+    existing.quantity += quantity;
+    existing.store = store || existing.store;
+    existing.status = "need";
+  } else {
     items.push({
       id: crypto.randomUUID(),
       name,
@@ -136,28 +147,51 @@
       store,
       status: "need"
     });
-
-    save();
-    render();
-
-    document.getElementById("name").value = "";
-    document.getElementById("quantity").value = "";
-    document.getElementById("store").value = "";
   }
+
+  save();
+  render();
+
+  document.getElementById("name").value = "";
+  document.getElementById("quantity").value = "";
+  document.getElementById("store").value = "";
+}
+
+
+function deleteItem(id) {
+  if (!confirm("Remove this item?")) return;
+  items = items.filter(i => i.id !== id);
+  save();
+  render();
+}
 
   function toggleStatus(id) {
-    const item = items.find(i => i.id === id);
-    item.status = item.status === "need" ? "have" : "need";
-    save();
-    render();
+  const item = items.find(i => i.id === id);
+
+  if (item.status === "need") {
+    const qty = prompt("How many did you buy?", item.quantity || 1);
+    item.quantity = Math.max(1, Number(qty) || 1);
+    item.status = "have";
+  } else {
+    item.status = "need";
   }
 
+  save();
+  render();
+}
+
   function changeQty(id, delta) {
-    const item = items.find(i => i.id === id);
-    item.quantity = Math.max(1, item.quantity + delta);
-    save();
-    render();
+  const item = items.find(i => i.id === id);
+  item.quantity += delta;
+
+  if (item.quantity <= 0) {
+    item.quantity = 0;
+    item.status = "need";
   }
+
+  save();
+  render();
+}
 
   function render() {
     const list = document.getElementById("list");
@@ -180,7 +214,10 @@
           <div class="controls">
             <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
             <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
-            <button class="small-btn" onclick="toggleStatus('${item.id}')">
+        <button class="small-btn" onclick="toggleStatus('${item.id}')">
+  ${item.status === "need" ? "Bought" : "Need"}
+</button>
+<button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
               ${item.status === "need" ? "Have" : "Need"}
             </button>
           </div>
