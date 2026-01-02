@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Grocery List</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f7;
+    color: #111;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+
+  .add-form {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  input, select, button {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+  }
+
+  button {
+    background: #007aff;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+
+  button:active {
+    transform: scale(0.98);
+  }
+
+  .list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .item {
+    background: white;
+    border-radius: 14px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .item.need {
+    border-left: 5px solid #ff3b30;
+  }
+
+  .item.have {
+    border-left: 5px solid #34c759;
+    opacity: 0.85;
+  }
+
+  .details {
+    display: grid;
+    gap: 4px;
+  }
+
+  .name {
+    font-weight: 600;
+  }
+
+  .meta {
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .controls {
+    display: grid;
+    gap: 6px;
+  }
+
+  .small-btn {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>Grocery List</h1>
+
+  <div class="add-form">
+    <input id="name" placeholder="Item name" />
+    <input id="quantity" type="number" min="1" placeholder="Quantity" />
+    <input id="store" placeholder="Store (optional)" />
+    <button onclick="addItem()">Add Item</button>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+  const STORAGE_KEY = "grocery-items";
+  let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  function addItem() {
+    const name = document.getElementById("name").value.trim();
+    const quantity = Number(document.getElementById("quantity").value) || 1;
+    const store = document.getElementById("store").value.trim();
+
+    if (!name) return;
+
+    items.push({
+      id: crypto.randomUUID(),
+      name,
+      quantity,
+      store,
+      status: "need"
+    });
+
+    save();
+    render();
+
+    document.getElementById("name").value = "";
+    document.getElementById("quantity").value = "";
+    document.getElementById("store").value = "";
+  }
+
+  function toggleStatus(id) {
+    const item = items.find(i => i.id === id);
+    item.status = item.status === "need" ? "have" : "need";
+    save();
+    render();
+  }
+
+  function changeQty(id, delta) {
+    const item = items.find(i => i.id === id);
+    item.quantity = Math.max(1, item.quantity + delta);
+    save();
+    render();
+  }
+
+  function render() {
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+
+    items
+      .sort((a, b) => a.status.localeCompare(b.status))
+      .forEach(item => {
+        const div = document.createElement("div");
+        div.className = `item ${item.status}`;
+
+        div.innerHTML = `
+          <div class="details">
+            <div class="name">${item.name}</div>
+            <div class="meta">
+              Qty: ${item.quantity}
+              ${item.store ? ` • ${item.store}` : ""}
+            </div>
+          </div>
+          <div class="controls">
+            <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
+            <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
+            <button class="small-btn" onclick="toggleStatus('${item.id}')">
+              ${item.status === "need" ? "Have" : "Need"}
+            </button>
+          </div>
+        `;
+
+        list.appendChild(div);
+      });
+  }
+
+  render();
+</script>
+
+</body>
+</html>
