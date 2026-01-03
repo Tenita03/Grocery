@@ -133,6 +133,11 @@
   <div class="list" id="list"></div>
 </div>
 
+<details style="margin-top:16px;">
+  <summary style="cursor:pointer;font-weight:600;">📜 Purchase History</summary>
+  <div id="history"></div>
+</details>
+
 <script>
 /* =========================
    STORAGE KEYS
@@ -140,6 +145,13 @@
 const STORAGE_KEY = "grocery-items";
 const UI_STATE_KEY = "grocery-ui-state";
 const SESSION_KEY = "grocery-shopping-session";
+
+const HISTORY_KEY = "grocery-purchase-history";
+let history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+
+function saveHistory() {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
 
 /* =========================
    STATE
@@ -190,11 +202,33 @@ function startSession() {
   render();
 }
 
-function endSession(commit = true) {
-  if (commit && shoppingSession) {
-    shoppingSession.items.forEach(id => {
-      const item = items.find(i => i.id === id);
-      if (!item) return;
+if (commit && shoppingSession) {
+  const purchasedItems = [];
+
+  shoppingSession.items.forEach(id => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    item.status = "have";
+    item.quantity = Math.max(item.lastQty || item.quantity || 1, 1);
+    item.lastQty = item.quantity;
+
+    purchasedItems.push({
+      name: item.name,
+      qty: item.quantity
+    });
+  });
+
+  history.unshift({
+    id: crypto.randomUUID(),
+    date: new Date().toISOString(),
+    store: shoppingSession.store || "Unknown",
+    items: purchasedItems
+  });
+
+  save();
+  saveHistory();
+}
 
       item.status = "have";
       item.quantity = Math.max(item.lastQty || item.quantity || 1, 1);
@@ -363,6 +397,33 @@ function clearHaveItems() {
 /* =========================
    RENDER
 ========================= */
+
+function renderHistory() {
+  const el = document.getElementById("history");
+  if (!el) return;
+
+  if (!history.length) {
+    el.innerHTML = "<p style='color:#666'>No purchases yet.</p>";
+    return;
+  }
+
+  el.innerHTML = history
+    .map(entry => `
+      <div style="margin:12px 0;padding:10px;background:#fff;border-radius:12px;">
+        <div style="font-weight:600;">
+          ${new Date(entry.date).toLocaleString()}
+          ${entry.store ? ` • ${entry.store}` : ""}
+        </div>
+        <div style="font-size:0.9rem;color:#555;margin-top:4px;">
+          ${entry.items.map(i => `${i.name} (${i.qty})`).join(", ")}
+        </div>
+      </div>
+    `)
+    .join("");
+}
+
+renderHistory();
+
 function render() {
   const list = document.getElementById("list");
   list.innerHTML = "";
