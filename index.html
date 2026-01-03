@@ -128,6 +128,12 @@
   </select>
 </div>
 
+<div class="filters">
+  <button onclick="startSession()">▶️ Start Session</button>
+  <button onclick="endSession(true)">✔ Finish & Apply</button>
+  <button onclick="endSession(false)">✖ Cancel</button>
+</div>
+
   <div class="list" id="list"></div>
 </div>
 
@@ -136,6 +142,52 @@
   let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 
 const UI_STATE_KEY = "grocery-ui-state";
+
+let shoppingSession = null;
+// { store: "Target", items: [itemId, itemId, ...] }
+
+const SESSION_KEY = "grocery-shopping-session";
+shoppingSession = JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+
+function saveSession() {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(shoppingSession));
+}
+
+function startSession() {
+  const store = prompt("Shopping where?", filterStore !== "all" ? filterStore : "");
+  shoppingSession = { store: store || "", items: [] };
+  saveSession();
+  render();
+}
+
+function endSession(commit = true) {
+  if (commit && shoppingSession) {
+    shoppingSession.items.forEach(id => {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+
+      item.status = "have";
+      item.quantity = Math.max(item.lastQty || item.quantity || 1, 1);
+      item.lastQty = item.quantity;
+    });
+    save();
+  }
+
+  shoppingSession = null;
+  localStorage.removeItem(SESSION_KEY);
+  render();
+}
+
+function toggleSessionItem(id) {
+  if (!shoppingSession) return;
+
+  const idx = shoppingSession.items.indexOf(id);
+  if (idx === -1) shoppingSession.items.push(id);
+  else shoppingSession.items.splice(idx, 1);
+
+  saveSession();
+  render();
+}
 
 function updateStoreFilter() {
   const select = document.getElementById("storeFilter");
@@ -278,6 +330,10 @@ function render() {
       const div = document.createElement("div");
       div.className = `item ${item.status}`;
 
+if (shoppingSession?.items.includes(item.id)) {
+  div.style.boxShadow = "0 0 0 2px #007aff inset";
+}
+
       div.innerHTML = `
         <div class="details">
           <div class="name">${item.name}</div>
@@ -294,6 +350,13 @@ function render() {
 
 ${item.status === "need" && item.lastQty
   ? `<button class="small-btn" onclick="smartRestock('${item.id}')">↺ Restock</button>`
+  : ""
+}
+
+${shoppingSession && item.status === "need"
+  ? `<button class="small-btn" onclick="toggleSessionItem('${item.id}')">
+      ${shoppingSession.items.includes(item.id) ? "− Remove" : "+ Add"}
+    </button>`
   : ""
 }
 
