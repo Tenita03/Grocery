@@ -134,21 +134,55 @@
 </div>
 
 <script>
-  const STORAGE_KEY = "grocery-items";
-  let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-
+/* =========================
+   STORAGE KEYS
+========================= */
+const STORAGE_KEY = "grocery-items";
 const UI_STATE_KEY = "grocery-ui-state";
-
-let shoppingSession = null;
-// { store: "Target", items: [itemId, itemId, ...] }
-
 const SESSION_KEY = "grocery-shopping-session";
-shoppingSession = JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+
+/* =========================
+   STATE
+========================= */
+let items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+let filterStatus = "all";
+let filterStore = "all";
+let mode = "all";
+
+let shoppingSession = JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+
+/* =========================
+   LOAD UI STATE (ONCE)
+========================= */
+const savedUI = JSON.parse(localStorage.getItem(UI_STATE_KEY));
+if (savedUI) {
+  mode = savedUI.mode || "all";
+  filterStatus = savedUI.filterStatus || "all";
+  filterStore = savedUI.filterStore || "all";
+}
+
+/* =========================
+   SAVE HELPERS
+========================= */
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function saveUIState() {
+  localStorage.setItem(
+    UI_STATE_KEY,
+    JSON.stringify({ mode, filterStatus, filterStore })
+  );
+}
 
 function saveSession() {
   localStorage.setItem(SESSION_KEY, JSON.stringify(shoppingSession));
 }
 
+/* =========================
+   SESSION LOGIC
+========================= */
 function startSession() {
   const store = prompt("Shopping where?", filterStore !== "all" ? filterStore : "");
   shoppingSession = { store: store || "", items: [] };
@@ -185,53 +219,48 @@ function toggleSessionItem(id) {
   render();
 }
 
-let filterStatus = "all";
-let filterStore = "all";
-let mode = "all";
-
-const savedUI = JSON.parse(localStorage.getItem(UI_STATE_KEY));
-if (savedUI) {
-  mode = savedUI.mode || "all";
-  filterStatus = savedUI.filterStatus || "all";
-  filterStore = savedUI.filterStore || "all";
-}
-
-
+/* =========================
+   FILTERS / MODES
+========================= */
 function setMode(newMode) {
   mode = newMode;
 
-  if (mode === "shopping") {
-    filterStatus = "need";
-  } else if (mode === "inventory") {
-    filterStatus = "have";
-  } else {
-    filterStatus = "all";
-  }
+  if (mode === "shopping") filterStatus = "need";
+  else if (mode === "inventory") filterStatus = "have";
+  else filterStatus = "all";
 
+  saveUIState();
   render();
 }
 
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }
+/* =========================
+   STORE FILTER
+========================= */
+function updateStoreFilter() {
+  const select = document.getElementById("storeFilter");
+  if (!select) return;
 
-function saveUIState() {
-  localStorage.setItem(
-    UI_STATE_KEY,
-    JSON.stringify({ mode, filterStatus, filterStore })
-  );
+  const current = filterStore;
+  const stores = [...new Set(items.map(i => (i.store || "").trim()).filter(Boolean))].sort();
+
+  select.innerHTML =
+    `<option value="all">All Stores</option>` +
+    stores.map(s => `<option value="${s}">${s}</option>`).join("");
+
+  select.value = current;
 }
 
-  function addItem() {
+/* =========================
+   CRUD ACTIONS
+========================= */
+function addItem() {
   const name = document.getElementById("name").value.trim();
   const quantity = Number(document.getElementById("quantity").value) || 1;
   const store = document.getElementById("store").value.trim();
 
   if (!name) return;
 
-  const existing = items.find(
-    i => i.name.toLowerCase() === name.toLowerCase()
-  );
+  const existing = items.find(i => i.name.toLowerCase() === name.toLowerCase());
 
   if (existing) {
     existing.quantity += quantity;
@@ -255,7 +284,6 @@ function saveUIState() {
   document.getElementById("store").value = "";
 }
 
-
 function deleteItem(id) {
   if (!confirm("Remove this item?")) return;
   items = items.filter(i => i.id !== id);
@@ -263,15 +291,12 @@ function deleteItem(id) {
   render();
 }
 
-  function toggleStatus(id) {
+function toggleStatus(id) {
   const item = items.find(i => i.id === id);
+  if (!item) return;
 
   if (item.status === "need") {
-    const qty = prompt(
-      "How many did you buy?",
-      item.lastQty || item.quantity || 1
-    );
-
+    const qty = prompt("How many did you buy?", item.lastQty || item.quantity || 1);
     item.quantity = Math.max(1, Number(qty) || 1);
     item.lastQty = item.quantity;
     item.status = "have";
@@ -283,87 +308,32 @@ function deleteItem(id) {
   render();
 }
 
-  function changeQty(id, delta) {
+function changeQty(id, delta) {
   const item = items.find(i => i.id === id);
+  if (!item) return;
+
   item.quantity += delta;
 
-  if (item.quantity <= (item.minQty ?? 1)) {
-    item.status = "need";
-  }
-
+  if (item.quantity <= (item.minQty ?? 1)) item.status = "need";
   if (item.quantity < 0) item.quantity = 0;
 
   save();
   render();
 }
 
-function render() {
-  const list = document.getElementById("list");
-  list.innerHTML = "";
-
-  updateStoreFilter();
-
-  items
-    .filter(item => {
-      if (filterStatus !== "all" && item.status !== filterStatus) return false;
-      if (filterStore !== "all" && item.store !== filterStore) return false;
-      return true;
-    })
-    .sort((a, b) => a.status.localeCompare(b.status))
-    .forEach(item => {
-      const div = document.createElement("div");
-      div.className = `item ${item.status}`;
-
-if (shoppingSession?.items.includes(item.id)) {
-  div.style.boxShadow = "0 0 0 2px #007aff inset";
-}
-
-      div.innerHTML = `
-        <div class="details">
-          <div class="name">${item.name}</div>
-          <div class="meta">
-            Qty: ${item.quantity}
-            ${item.store ? ` • ${item.store}` : ""}
-          </div>
-        </div>
-
-<div class="controls">
-  <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
-  <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
-
-  <button class="small-btn" onclick="toggleStatus('${item.id}')">
-    ${item.status === "need" ? "Bought" : "Need"}
-  </button>
-
-  ${
-    item.status === "need" && item.lastQty
-      ? `<button class="small-btn" onclick="smartRestock('${item.id}')">↺ Restock</button>`
-      : ""
-  }
-
-  ${
-    shoppingSession && item.status === "need"
-      ? `<button class="small-btn" onclick="toggleSessionItem('${item.id}')">
-          ${shoppingSession.items.includes(item.id) ? "− Remove" : "+ Add"}
-        </button>`
-      : ""
-  }
-
-  <button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
-</div>
-
-}
-
-  render();
-
 function smartRestock(id) {
   const item = items.find(i => i.id === id);
-  item.quantity = item.lastQty;
+  if (!item) return;
+
+  item.quantity = item.lastQty || 1;
   item.status = "have";
   save();
   render();
 }
 
+/* =========================
+   BATCH ACTIONS
+========================= */
 function markAllBought() {
   if (!confirm("Mark all visible items as bought?")) return;
 
@@ -390,6 +360,73 @@ function clearHaveItems() {
   render();
 }
 
+/* =========================
+   RENDER
+========================= */
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  updateStoreFilter();
+
+  items
+    .filter(item => {
+      if (filterStatus !== "all" && item.status !== filterStatus) return false;
+      if (filterStore !== "all" && item.store !== filterStore) return false;
+      return true;
+    })
+    .sort((a, b) => a.status.localeCompare(b.status))
+    .forEach(item => {
+      const div = document.createElement("div");
+      div.className = `item ${item.status}`;
+
+      if (shoppingSession?.items.includes(item.id)) {
+        div.style.boxShadow = "0 0 0 2px #007aff inset";
+      }
+
+      div.innerHTML = `
+        <div class="details">
+          <div class="name">${item.name}</div>
+          <div class="meta">
+            Qty: ${item.quantity}
+            ${item.store ? ` • ${item.store}` : ""}
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
+          <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
+
+          <button class="small-btn" onclick="toggleStatus('${item.id}')">
+            ${item.status === "need" ? "Bought" : "Need"}
+          </button>
+
+          ${
+            item.status === "need" && item.lastQty
+              ? `<button class="small-btn" onclick="smartRestock('${item.id}')">↺ Restock</button>`
+              : ""
+          }
+
+          ${
+            shoppingSession && item.status === "need"
+              ? `<button class="small-btn" onclick="toggleSessionItem('${item.id}')">
+                  ${shoppingSession.items.includes(item.id) ? "− Remove" : "+ Add"}
+                </button>`
+              : ""
+          }
+
+          <button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
+        </div>
+      `;
+
+      list.appendChild(div);
+    });
+}
+
+/* =========================
+   INIT
+========================= */
+render();
 </script>
 
 </body>
