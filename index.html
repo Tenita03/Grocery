@@ -118,9 +118,16 @@
   <button onclick="setMode('shopping')">🛒 Shopping</button>
   <button onclick="setMode('inventory')">📦 Inventory</button>
 
-<div class="filters">
   <button onclick="markAllBought()">✔ Buy All</button>
   <button onclick="clearHaveItems()">🧹 Clear Have</button>
+
+  <button onclick="startSession()">▶️ Start Session</button>
+  <button onclick="endSession(true)">✔ Finish</button>
+  <button onclick="endSession(false)">✖ Cancel</button>
+
+  <select id="storeFilter" onchange="filterStore = this.value; saveUIState(); render()">
+    <option value="all">All Stores</option>
+  </select>
 </div>
 
   <select id="storeFilter" onchange="filterStore = this.value; render()">
@@ -128,11 +135,6 @@
   </select>
 </div>
 
-<div class="filters">
-  <button onclick="startSession()">▶️ Start Session</button>
-  <button onclick="endSession(true)">✔ Finish & Apply</button>
-  <button onclick="endSession(false)">✖ Cancel</button>
-</div>
 
   <div class="list" id="list"></div>
 </div>
@@ -189,11 +191,9 @@ function toggleSessionItem(id) {
   render();
 }
 
-function updateStoreFilter() {
-  const select = document.getElementById("storeFilter");
-  if (!select) return;
-
-  const stores = [...new Set(items.map(i => i.store).filter(Boolean))];
+let filterStatus = "all";
+let filterStore = "all";
+let mode = "all";
 
 const savedUI = JSON.parse(localStorage.getItem(UI_STATE_KEY));
 if (savedUI) {
@@ -202,13 +202,6 @@ if (savedUI) {
   filterStore = savedUI.filterStore || "all";
 }
 
-  select.innerHTML = `<option value="all">All Stores</option>` +
-    stores.map(s => `<option value="${s}">${s}</option>`).join("");
-}
-
-let filterStatus = "all";   // all | need | have
-let filterStore = "all";
-let mode = "all";          // all | shopping | inventory
 
 function setMode(newMode) {
   mode = newMode;
@@ -309,9 +302,6 @@ function deleteItem(id) {
   save();
   render();
 }
-  save();
-  render();
-}
 
 function render() {
   const list = document.getElementById("list");
@@ -342,27 +332,32 @@ if (shoppingSession?.items.includes(item.id)) {
             ${item.store ? ` • ${item.store}` : ""}
           </div>
         </div>
-        <div class="controls">
-          <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
-          <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
-          <button class="small-btn" onclick="toggleStatus('${item.id}')">
-            ${item.status === "need" ? "Bought" : "Need"}
 
-${item.status === "need" && item.lastQty
-  ? `<button class="small-btn" onclick="smartRestock('${item.id}')">↺ Restock</button>`
-  : ""
-}
+<div class="controls">
+  <button class="small-btn" onclick="changeQty('${item.id}', 1)">＋</button>
+  <button class="small-btn" onclick="changeQty('${item.id}', -1)">－</button>
 
-${shoppingSession && item.status === "need"
-  ? `<button class="small-btn" onclick="toggleSessionItem('${item.id}')">
-      ${shoppingSession.items.includes(item.id) ? "− Remove" : "+ Add"}
-    </button>`
-  : ""
-}
+  <button class="small-btn" onclick="toggleStatus('${item.id}')">
+    ${item.status === "need" ? "Bought" : "Need"}
+  </button>
 
-          </button>
-          <button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
-        </div>
+  ${
+    item.status === "need" && item.lastQty
+      ? `<button class="small-btn" onclick="smartRestock('${item.id}')">↺ Restock</button>`
+      : ""
+  }
+
+  ${
+    shoppingSession && item.status === "need"
+      ? `<button class="small-btn" onclick="toggleSessionItem('${item.id}')">
+          ${shoppingSession.items.includes(item.id) ? "− Remove" : "+ Add"}
+        </button>`
+      : ""
+  }
+
+  <button class="small-btn" onclick="deleteItem('${item.id}')">🗑</button>
+</div>
+
       `;
 
       list.appendChild(div);
